@@ -3973,34 +3973,70 @@ function loadRememberedLogin(){
 try{let saved=JSON.parse(localStorage.getItem("miltonRememberedLogin")||"null");if(saved&&saved.username){document.getElementById("username").value=saved.username;document.getElementById("password").value=saved.password||"";document.getElementById("rememberPassword").checked=true;}}catch(e){}
 }
 
-function login(){
-let username=document.getElementById("username").value.trim();
-let password=document.getElementById("password").value;
-let users=getSystemUsers();
-let user=users.find(function(u){return String(u.username||"").toLowerCase()===username.toLowerCase() && String(u.password||"")===password;});
-if(user&&user.status==="Active"){
-if(user.role==="Loan Officer"){
-  let normalized=normalizeLoanOfficerType(user.officerType);
-  if(user.officerType!==normalized){user.officerType=normalized;saveSystemUsers(users);}
-}
-if(document.getElementById("rememberPassword")?.checked){localStorage.setItem("miltonRememberedLogin",JSON.stringify({username:username,password:password}));}else{localStorage.removeItem("miltonRememberedLogin");}
 
-sessionStorage.setItem("miltonSessionUser",JSON.stringify({id:user.id,fullName:user.fullName,username:user.username,role:user.role,officerType:user.role==="Loan Officer"?(user.officerType||"Starter Loan Officer"):""}));
-logAuditAction("LOGIN","User signed in");
+async function login(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const errorBox = document.getElementById("loginError");
+  const button = document.querySelector('#loginPage button[onclick*="login"]');
 
-document.getElementById("loginPage").style.display="none";
-document.getElementById("systemPage").style.display="block";
-document.getElementById("loginError").textContent="";
-updateCurrentUserUI();
-try{updateDashboardDisplays();}catch(e){}
+  errorBox.textContent = "";
 
-}else{
+  if (!username || !password) {
+    errorBox.textContent = "Please enter your email and password.";
+    return;
+  }
 
-document.getElementById("loginError").textContent=
-(user?"This user is inactive.":"Incorrect username or password.");
+  if (button) button.disabled = true;
 
-}
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
 
+    const result = await response.json();
+
+    if (!response.ok || !result.user) {
+      errorBox.textContent = result.error || "Login failed.";
+      return;
+    }
+
+    const user = result.user;
+
+    sessionStorage.setItem("miltonSessionUser", JSON.stringify({
+      id: user.id,
+      fullName: user.fullName,
+      username: user.username,
+      role: user.role,
+      officerType: user.role === "Loan Officer" ? "Starter Loan Officer" : ""
+    }));
+
+    sessionStorage.setItem("miltonAccessToken", result.access_token);
+    sessionStorage.setItem("miltonRefreshToken", result.refresh_token);
+
+    if (document.getElementById("rememberPassword")?.checked) {
+      localStorage.setItem("miltonRememberedLogin", JSON.stringify({
+        username,
+        password: ""
+      }));
+    } else {
+      localStorage.removeItem("miltonRememberedLogin");
+    }
+
+    logAuditAction("LOGIN", "User signed in");
+    document.getElementById("loginPage").style.display = "none";
+    document.getElementById("systemPage").style.display = "block";
+    errorBox.textContent = "";
+    updateCurrentUserUI();
+
+    try { updateDashboardDisplays(); } catch (e) {}
+  } catch (error) {
+    errorBox.textContent = "Cannot reach the login service. Please try again.";
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 
