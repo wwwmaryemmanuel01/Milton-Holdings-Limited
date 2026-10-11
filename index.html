@@ -8879,7 +8879,12 @@ let today=new Date();let localToday=new Date(today.getTime()-today.getTimezoneOf
 if(!date){alert("Please enter the disbursement date.");return;}
 if(date>localToday){alert("Disbursement date cannot be in the future.");return;}
 if(!method){alert("Please select the method of disbursement.");return;}
-if(method==="Mobile Money"&&!reference){alert("Please enter the mobile money transaction reference.");return;}
+
+if(["Mobile Money","Mpamba","Airtel Money"].includes(method)&&!reference){
+  alert("Please enter the mobile money transaction reference.");
+  return;
+}
+
 if(!confirm("Disburse loan "+app.applicationNumber+" to "+fullCustomerName(app)+" on "+formatApplicationDate(date)+" by "+method+"?"))return;
 app.status="Active";app.disbursedDate=date;app.disbursementDate=date;app.disbursementMethod=method;app.disbursementReference=reference;app.disbursedAmount=Number(app.appliedAmount)||0;
 app.disbursedBy=auditActorLabel();
@@ -10701,7 +10706,16 @@ c.p+
 <h3>Confirm Loan Disbursement</h3>
 <p id="disbursementModalLoan"></p>
 <div class="group"><label>Disbursement Date *</label><input id="disbursementDateInput" type="date"></div>
-<div class="group"><label>Method of Disbursement *</label><select id="disbursementMethodInput" onchange="toggleDisbursementReference()"><option value="">Select method</option><option>Cash</option><option>Bank Transfer</option><option>Mobile Money</option><option>Other</option></select></div>
+<div class="group"><label>Method of Disbursement *</label>
+<select id="disbursementMethodInput" onchange="toggleDisbursementReference()">
+  <option value="">Select method</option>
+  <option>Cash</option>
+  <option>Bank Transfer</option>
+  <option>Mpamba</option>
+  <option>Airtel Money</option>
+  <option>Other</option>
+</select>
+</div>
 <div class="group"><label>Disbursement Reference</label><input id="disbursementReferenceInput" placeholder="Reference / transaction number"></div>
 <div class="modal-actions"><button type="button" class="modal-cancel" onclick="closeDisbursementModal()">CANCEL</button><button type="button" class="modal-confirm" onclick="confirmDisbursement()">CONFIRM DISBURSEMENT</button></div>
 </div></div>
