@@ -10799,6 +10799,8 @@ c.p+
       }
 
       message.textContent = "Password updated successfully. You can now sign in with your new password.";
+      panel.style.display = "none";
+      document.getElementById("loginPage").style.display = "block";
       form.reset();
       window.history.replaceState(null, "", window.location.pathname);
       await client.auth.signOut();
