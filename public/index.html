@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Milton Holdings Limited — loan services and financial solutions in Malawi.">
+  <title>Milton Holdings Limited | Financial Services</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; color: #172033; line-height: 1.6; }
+    header { background: #092b55; color: white; padding: 18px 7%; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
+    .brand { font-size: 21px; font-weight: bold; }
+    nav { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+    nav a { color: white; text-decoration: none; }
+    .btn { display: inline-block; background: #f4b400; color: #10233e; padding: 12px 19px; border-radius: 6px; text-decoration: none; font-weight: bold; }
+    .hero { background: linear-gradient(120deg, #092b55, #1266a5); color: white; padding: 85px 7%; }
+    .hero h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.15; max-width: 700px; margin-bottom: 20px; }
+    .hero p { max-width: 620px; margin-bottom: 28px; font-size: 18px; }
+    section { padding: 60px 7%; }
+    h2 { color: #092b55; font-size: 30px; margin-bottom: 18px; }
+    .intro { max-width: 760px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 28px; }
+    .card { padding: 25px; border: 1px solid #e0e7ef; border-radius: 10px; background: #fff; box-shadow: 0 5px 18px #092b550d; }
+    .card h3 { color: #1266a5; margin-bottom: 10px; }
+    .light { background: #f2f6fa; }
+    .contact { background: #092b55; color: white; text-align: center; }
+    .contact h2 { color: white; }
+    footer { padding: 22px 7%; text-align: center; background: #061b36; color: white; font-size: 14px; }
+    .note { margin-top: 18px; font-size: 13px; opacity: .85; }
+    @media (max-width: 600px) { header { align-items: flex-start; } nav { gap: 12px; } .hero { padding-top: 60px; padding-bottom: 60px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">MILTON HOLDINGS LIMITED</div>
+    <nav>
+      <a href="#home">Home</a>
+      <a href="#services">Our Services</a>
+      <a href="#eligibility">Eligibility</a>
+      <a class="btn" href="/staff">Staff Login</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="home">
+      <h1>Financial Support for Your Next Step</h1>
+      <p>Welcome to Milton Holdings Limited. Explore our loan services and learn how to prepare for a loan application.</p>
+      <a class="btn" href="#services">Explore Our Services</a>
+      <p class="note">All loans are subject to eligibility checks, assessment and approval. Terms will be explained before acceptance.</p>
+    </section>
+
+    <section>
+      <div class="intro">
+        <h2>Welcome to Milton Holdings Limited</h2>
+        <p>We aim to make the loan application process clear, accessible and responsible. Review the information below and contact our team for details about available products, fees and repayment terms.</p>
+      </div>
+    </section>
+
+    <section class="light" id="services">
+      <h2>Our Services</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>Personal Loans</h3>
+          <p>Ask our team about personal financing options, eligibility requirements and repayment arrangements.</p>
+        </div>
+        <div class="card">
+          <h3>Business Financing</h3>
+          <p>Enquire about financing options that may support eligible small businesses and business needs.</p>
+        </div>
+        <div class="card">
+          <h3>Repayment Guidance</h3>
+          <p>Get clear information about repayment dates, accepted payment methods and how to confirm a payment.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="eligibility">
+      <h2>Preparing to Apply</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>1. Prepare Your Details</h3>
+          <p>Have your correct contact information and any documents requested by our team ready.</p>
+        </div>
+        <div class="card">
+          <h3>2. Review the Terms</h3>
+          <p>Ask about interest, fees, repayment periods and total repayment before accepting an offer.</p>
+        </div>
+        <div class="card">
+          <h3>3. Await Assessment</h3>
+          <p>Applications are subject to verification and approval. Applying does not guarantee a loan.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact" id="contact">
+      <h2>Contact Our Team</h2>
+      <p>Please contact Milton Holdings Limited directly for verified contact details, current loan products and application assistance.</p>
+      <p class="note">We will add your official phone number, email and office address once confirmed.</p>
+      <br>
+      <a class="btn" href="/staff">Staff Login</a>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; <span id="year"></span> Milton Holdings Limited. All rights reserved.</p>
+    <p>Responsible lending starts with clear information.</p>
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
