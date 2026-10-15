@@ -1808,6 +1808,21 @@ app.use(
   )
 );
 
+
+// ========================================
+// PUBLIC CUSTOMER HOMEPAGE
+// ========================================
+
+app.get("/", (_req, res, next) => {
+  res.sendFile(
+    path.join(__dirname, "public", "index.html"),
+    error => {
+      if (error) next(error);
+    }
+  );
+});
+
+
 // ========================================
 // EXISTING STAFF MANAGEMENT WEBSITE
 // ========================================
