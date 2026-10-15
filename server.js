@@ -457,7 +457,7 @@ app.post("/api/auth/login", async (req, res) => {
       error: customerError
     } = await supabase
       .from("customers")
-      .select("id, full_name, phone, email, address")
+      .select("id, full_name, phone, email, address, account_no")
       .eq("id", data.user.id)
       .maybeSingle();
 
@@ -475,6 +475,7 @@ app.post("/api/auth/login", async (req, res) => {
         email: customer.email || email,
         phone: customer.phone,
         address: customer.address,
+        accountNo: customer.account_no,
         role: "customer"
       },
       access_token: data.session.access_token,
@@ -510,7 +511,7 @@ app.get("/api/me", authenticate, async (req, res) => {
 
     const { data, error } = await supabase
       .from("customers")
-      .select("id, full_name, phone, email, address")
+      .select("id, full_name, phone, email, address, account_no")
       .eq("id", req.authUser.id)
       .maybeSingle();
 
@@ -529,6 +530,7 @@ app.get("/api/me", authenticate, async (req, res) => {
         phone: data.phone,
         email: data.email,
         address: data.address,
+        accountNo: data.account_no,
         role: "customer"
       }
     });
