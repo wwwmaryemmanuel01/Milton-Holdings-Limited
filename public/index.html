@@ -144,7 +144,10 @@ fieldset.fs .hint{color:var(--muted);font-size:12.5px;margin:-4px 0 12px}
 .mainarea{margin-left:262px;min-height:100vh}
 .topnav{background:#fff;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:40;box-shadow:0 1px 0 var(--border);gap:10px}
 .topnav h1{font-size:17px;color:var(--navy)}
-.topnav .right{display:flex;align-items:center;gap:10px}
+.topnav .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.nav-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.nav-back{white-space:nowrap}
+@media(max-width:600px){.topnav{padding:0 10px;height:auto;min-height:64px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.topnav .right{gap:6px}.nav-actions .btn{padding:7px 9px;font-size:11px}.topnav h1{font-size:15px}}
 .bell{position:relative;background:#f1f5f9;border:none;width:40px;height:40px;border-radius:50%;font-size:18px}
 .bell span{position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:10px;border-radius:20px;padding:1px 6px}
 .content{padding:24px;max-width:1500px}
@@ -454,6 +457,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
   <div class="topnav">
    <div style="display:flex;align-items:center;gap:12px"><button class="hamb" style="display:block" onclick="toggleSide()">☰</button><h1 id="pageTitle">Dashboard</h1></div>
    <div class="right">
+    <div class="nav-actions"><button id="sectionBackBtn" class="btn btn-light btn-sm nav-back" onclick="goBack()">← Back</button><button class="btn btn-light btn-sm" onclick="goDashboard()">⌂ Dashboard</button></div>
     <button class="btn btn-light btn-sm" onclick="showPublic()">🌐 Website</button>
     <button class="bell" onclick="go(CU.role==='admin'?'notifA':'notif')">🔔<span id="bellCnt" style="display:none">0</span></button>
     <button class="btn btn-navy btn-sm" onclick="logout()">⏻ Logout</button>
@@ -473,7 +477,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
    Business data must be stored by the backend, not browser storage.
    ========================================================= */
 const SS_KEY='mhl_session';
-let DB=null, CU=null, API_TOKEN=null, currentPage='', after=[], charts={}, calcType={}, pageArgs={};
+let DB=null, CU=null, API_TOKEN=null, currentPage='', after=[], charts={}, calcType={}, pageArgs={}, navStack=[];
+let navPopHandling=false;
 async function apiFetch(path, options={}) {
  const headers=Object.assign({'Content-Type':'application/json'}, options.headers||{});
  if(API_TOKEN) headers.Authorization='Bearer '+API_TOKEN;
@@ -678,7 +683,7 @@ async function doRegister(e){e.preventDefault();const f=e.target;if(f.password.v
  API_TOKEN=data.access_token;const raw=data.user||{};const u={id:raw.id,role:'customer',name:raw.fullName||f.name.value.trim(),email:raw.email||f.email.value.trim(),phone:raw.phone||f.phone.value.trim(),status:'active',address:{district:f.district.value,area:f.area.value.trim(),house:'',ta:''},nok:{},kyc:[]};
  DB.users.push(u);CU=u;try{await hydrateApplications()}catch(loadErr){toast('Account created, but loan records could not be loaded: '+esc(loadErr.message),'error')}closeModal();toast('🎉 Account created successfully.');enterApp();if(window._pendingApply){go('apply',{type:window._pendingApply});window._pendingApply=null}
  }catch(err){toast('❌ '+esc(err.message||'Registration failed'),'error')}}
-function logout(){CU=null;API_TOKEN=null;DB.users=[];showPublic();toast('You have been logged out.','info')}
+function logout(){CU=null;API_TOKEN=null;DB.users=[];navStack=[];currentPage='';try{history.pushState({},' ',location.pathname)}catch(e){}showPublic();toast('You have been logged out.','info')}
 
 /* ---------- app shell ---------- */
 const C_MENU=[['Main'],['home','🏠','Home'],['account','👤','Account Details'],['loans','💼','Active Loans'],['apply','📝','Application Forms'],['calc','🧮','Loan Calculator'],['Money'],['repay','💳','Repayments'],['schedules','📅','Loan Schedules'],['tx','🔁','Transactions'],['statements','📄','Statements'],['Support'],['notif','🔔','Notifications'],['help','💬','Help Assistant']];
@@ -687,14 +692,23 @@ function menuCounts(){if(CU.role==='admin'){const chatsWaiting=Object.values(DB.
  return{notif:DB.notifications.filter(n=>n.userId===CU.id&&!n.read).length,help:(DB.chats[CU.id]&&DB.chats[CU.id].custUnread)||0}}
 function renderMenu(){const m=CU.role==='admin'?A_MENU:C_MENU;const cnt=menuCounts();$('menu').innerHTML=m.map(i=>i.length===1?`<div class="mlabel">${i[0]}</div>`:`<a class="${currentPage===i[0]?'active':''}" onclick="go('${i[0]}')"><span>${i[1]}</span>${i[2]}${cnt[i[0]]?`<span class="cnt">${cnt[i[0]]}</span>`:''}</a>`).join('');
  const n=CU.role==='admin'?cnt.notifA:cnt.notif;$('bellCnt').style.display=n?'inline':'none';$('bellCnt').textContent=n}
-function enterApp(){$('publicView').style.display='none';$('appView').style.display='block';$('sideBrand').innerHTML=brandHTML(40);
- $('sideUser').innerHTML=`<div class="avatar">${initials(CU.name)}</div><div><b>${esc(CU.name)}</b><small>${CU.role==='admin'?'Administrator':'Acc: '+CU.accountNo}</small></div>`;runReminders();go(CU.role==='admin'?'stats':'home')}
+function enterApp(){$('publicView').style.display='none';$('appView').style.display='block';$('sideBrand').innerHTML=brandHTML(40);navStack=[];
+ $('sideUser').innerHTML=`<div class="avatar">${initials(CU.name)}</div><div><b>${esc(CU.name)}</b><small>${CU.role==='admin'?'Administrator':'Acc: '+(CU.accountNo||'—')}</small></div>`;runReminders();go(CU.role==='admin'?'stats':'home',{},{skipStack:true});
+ try{history.pushState({mhlDashboard:true,page:currentPage,args:pageArgs},'','#dashboard/'+currentPage)}catch(e){}}
 function toggleSide(open){const s=$('sidebar');const o=open===undefined?!s.classList.contains('open'):open;s.classList.toggle('open',o);$('overlay').classList.toggle('show',o)}
-function go(page,args){if(!CU)return;const P=CU.role==='admin'?AP:CP;if(!P[page])page=CU.role==='admin'?'stats':'home';currentPage=page;pageArgs=args||{};
+function go(page,args,options={}){if(!CU)return;const P=CU.role==='admin'?AP:CP;if(!P[page])page=CU.role==='admin'?'stats':'home';
+ const nextArgs=args||{};if(currentPage&&currentPage!==page&&!options.skipStack)navStack.push({page:currentPage,args:pageArgs||{}});
+ currentPage=page;pageArgs=nextArgs;
  Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}});charts={};after=[];
  const m=(CU.role==='admin'?A_MENU:C_MENU).find(i=>i[0]===page);$('pageTitle').textContent=m?m[2]:'';
- $('content').innerHTML=P[page](pageArgs);after.forEach(f=>{try{f()}catch(e){console.error(e)}});after=[];renderMenu();toggleSide(false);window.scrollTo(0,0)}
-function refresh(){go(currentPage,pageArgs)}
+ $('content').innerHTML=P[page](pageArgs);after.forEach(f=>{try{f()}catch(e){console.error(e)}});after=[];renderMenu();toggleSide(false);window.scrollTo(0,0);
+ const back=$('sectionBackBtn');if(back){back.disabled=navStack.length===0;back.style.opacity=navStack.length===0?'.65':'1'}
+ if(!options.skipHistory){try{const state={mhlDashboard:true,page:currentPage,args:pageArgs};if(options.replaceHistory)history.replaceState(state,'','#dashboard/'+currentPage);else history.pushState(state,'','#dashboard/'+currentPage)}catch(e){}}
+}
+function goBack(fromPop=false){if(!CU)return;if(navStack.length){const prev=navStack.pop();go(prev.page,prev.args,{skipStack:true,skipHistory:fromPop,replaceHistory:!fromPop})}else{goDashboard(fromPop)}}
+function goDashboard(fromPop=false){if(!CU)return;navStack=[];go(CU.role==='admin'?'stats':'home',{}, {skipStack:true,skipHistory:fromPop,replaceHistory:!fromPop})}
+window.addEventListener('popstate',function(){if(!CU||$('appView').style.display==='none')return;navPopHandling=true;if(history.state&&history.state.mhlDashboard){const target=history.state;navStack.pop();go(target.page,target.args,{skipStack:true,skipHistory:true})}else{goBack(true)}navPopHandling=false});
+function refresh(){go(currentPage,pageArgs,{skipStack:true})}
 function mkChart(id,cfg){after.push(()=>{const el=$(id);if(!el||!window.Chart)return;cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Poppins'}}}}},cfg.options||{});charts[id]=new Chart(el,cfg)})}
 const COLORS=['#0b1f3a','#d4a017','#16a34a','#dc2626','#2563eb','#f59e0b','#7c3aed','#0891b2','#db2777','#65a30d'];
 
