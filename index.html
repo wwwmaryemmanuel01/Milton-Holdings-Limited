@@ -1931,46 +1931,47 @@ body.dark-mode .application-section-title h3,body.dark-mode .detail-section-titl
 body.dark-mode .close-button,body.dark-mode .theme-choice,body.dark-mode .system-theme-choice{color:#d8eee5!important}
 
 
-/* MILTON HOLDINGS — MATCH PUBLIC WEBSITE THEME */
-/* Appearance only: do not change JavaScript or HTML functionality */
+/* MILTON HOLDINGS LIMITED — EXECUTIVE NAVY & GOLD */
+/* Appearance only: preserve all existing functionality */
 
 :root {
   --blue: #0b1f3a;
   --blue2: #16386b;
   --orange: #d4a017;
-  --light: #f4f6fb;
+  --light: #edf1f7;
   --white: #ffffff;
   --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --muted: #64748b;
+  --border: #d8e0eb;
 }
 
-/* Main admin background */
+/* Overall page */
 body {
-  background: #f4f6fb !important;
+  background: #edf1f7 !important;
   color: #1f2937;
-  font-family: 'Poppins', Arial, sans-serif;
+  font-family: Arial, sans-serif;
 }
 
-/* Header and branding */
+/* Header */
 .topbar {
-  background: #ffffff !important;
-  border-bottom-color: #e5e7eb !important;
+  background: #0b1f3a !important;
+  color: #ffffff !important;
+  border-bottom: 3px solid #d4a017 !important;
 }
 
-.brand strong,
-.brand small,
-.dashboard h2,
-.page h2,
-label {
-  color: #0b1f3a;
+.topbar,
+.topbar strong,
+.topbar small,
+.topbar a {
+  color: #ffffff;
 }
 
-/* Dashboard surfaces */
+/* Dashboard background */
 .dashboard {
-  background: #f4f6fb !important;
+  background: #edf1f7 !important;
 }
 
+/* Content cards */
 .card,
 .dashboard-card,
 .dashboard-kpi,
@@ -1978,50 +1979,68 @@ label {
 .placeholder,
 .calc,
 .login-card {
-  border-color: #e5e7eb;
-  box-shadow: 0 8px 24px rgba(11, 31, 58, 0.07);
+  background: #ffffff;
+  border: 1px solid #d8e0eb;
+  border-radius: 12px;
+  box-shadow: 0 5px 18px rgba(11, 31, 58, 0.08);
 }
 
-/* Navigation and action buttons */
-.primary,
-.search-button,
-.export-button {
-  background: linear-gradient(135deg, #f5c542, #d4a017) !important;
-  color: #0b1f3a !important;
-}
-
-.back,
-.logout,
-.settings-topbar-button {
-  color: #0b1f3a !important;
-  border-color: #dbe2ec;
-}
-
-.module.m1,
-.module.m2 {
-  background: linear-gradient(135deg, #0b1f3a, #16386b) !important;
-}
-
-.module.m3 {
-  background: linear-gradient(135deg, #d4a017, #f5c542) !important;
-  color: #0b1f3a !important;
-}
-
-.module.m4 {
-  background: linear-gradient(135deg, #16386b, #2563a6) !important;
-}
-
-.module.m5 {
-  background: linear-gradient(135deg, #16386b, #315d98) !important;
-}
-
-/* Section headings and table headers */
+/* Headings */
+.dashboard h2,
+.page h2,
 .dashboard-card-title,
 .dashboard-chart-title,
 .settings-card-title {
   color: #0b1f3a !important;
 }
 
+/* Main buttons */
+.primary,
+.search-button,
+.export-button {
+  background: #0b1f3a !important;
+  color: #ffffff !important;
+  border: 1px solid #0b1f3a;
+}
+
+.primary:hover,
+.search-button:hover,
+.export-button:hover {
+  background: #16386b !important;
+}
+
+/* Navigation modules */
+.module.m1,
+.module.m2 {
+  background: linear-gradient(135deg, #0b1f3a, #16386b) !important;
+  color: #ffffff !important;
+}
+
+.module.m3 {
+  background: #e4eaf3 !important;
+  color: #0b1f3a !important;
+  border: 1px solid #cbd5e1;
+}
+
+.module.m4 {
+  background: linear-gradient(135deg, #16386b, #244d7d) !important;
+  color: #ffffff !important;
+}
+
+.module.m5 {
+  background: #dbe5f2 !important;
+  color: #0b1f3a !important;
+}
+
+/* Gold accents only */
+button.gold,
+.gold-button,
+.active,
+.nav-active {
+  border-color: #d4a017;
+}
+
+/* Table headers */
 .dashboard-overdue-table th,
 .active-loan-section-title {
   background: #0b1f3a !important;
@@ -2031,26 +2050,49 @@ label {
 .settings-users-table th,
 .dashboard-upcoming-table th,
 .active-loan-table th {
-  background: #eef2f7 !important;
+  background: #dfe6f0 !important;
   color: #0b1f3a !important;
 }
 
-/* Inputs */
+/* Table borders and alternating rows */
+table {
+  border-color: #d8e0eb;
+}
+
+tbody tr:nth-child(even) {
+  background: #f5f7fb;
+}
+
+/* Form fields */
+input,
+select,
+textarea {
+  border-color: #cbd5e1;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
   border-color: #d4a017 !important;
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.18);
+  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+  outline: none;
 }
 
-/* Keep mobile layouts usable */
+/* Secondary controls */
+.back,
+.logout,
+.settings-topbar-button {
+  border-color: #cbd5e1;
+}
+
+/* Responsive spacing */
 @media (max-width: 620px) {
   .dashboard {
     padding-left: 12px;
     padding-right: 12px;
   }
 }
-
+  
 </style>
 </head>
 
