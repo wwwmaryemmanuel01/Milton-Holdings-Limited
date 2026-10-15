@@ -469,10 +469,31 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 <script>
 /* =========================================================
    MILTON HOLDINGS LIMITED – Loan Management System
-   Single-file app. Data is persisted in the browser (localStorage).
+   Public portal. Authentication and loan application submissions use the server API.
+   Business data must be stored by the backend, not browser storage.
    ========================================================= */
-const LS_KEY='mhl_db_v2', SS_KEY='mhl_session';
-let DB=null, CU=null, currentPage='', after=[], charts={}, calcType={}, pageArgs={};
+const SS_KEY='mhl_session';
+let DB=null, CU=null, API_TOKEN=null, currentPage='', after=[], charts={}, calcType={}, pageArgs={};
+async function apiFetch(path, options={}) {
+ const headers=Object.assign({'Content-Type':'application/json'}, options.headers||{});
+ if(API_TOKEN) headers.Authorization='Bearer '+API_TOKEN;
+ const response=await fetch(path,Object.assign({},options,{headers}));
+ let body={}; try{body=await response.json()}catch(e){}
+ if(!response.ok) throw new Error(body.error||'Request failed ('+response.status+')');
+ return body;
+}
+async function hydrateApplications(){
+ if(!API_TOKEN||!CU)return;
+ const result=await apiFetch('/api/loan-applications');
+ const rows=result.applications||[];
+ DB.loans=rows.map(a=>{let detail={};try{detail=JSON.parse(a.purpose||'{}')}catch(e){}
+  const type=detail.loanType==='business'?'business':'personal';
+  const months=Number(a.term_months)||1, amount=Number(a.amount)||0;
+  const calc=calcLoan(type,amount,months);
+  return {id:a.id,ref:'APP-'+String(a.id).slice(0,8).toUpperCase(),userId:a.customer_id,type,amount,months,rate:Number(a.interest_rate)||calc.rate,interest:calc.interest,total:calc.total,installment:calc.installment,purpose:'',status:String(a.status||'pending').toLowerCase(),reason:a.rejection_reason||'',appliedAt:a.applied_at?new Date(a.applied_at).getTime():Date.now(),approvedAt:a.reviewed_at?new Date(a.reviewed_at).getTime():null,disbursedAt:null,closedAt:null,disburseMethod:'',disburseRef:'',paid:0,balance:calc.total,schedule:[],app:detail.form||{},docs:{}};
+ });
+}
+
 const DAY=864e5;
 
 /* ---------- utils ---------- */
@@ -491,8 +512,9 @@ function userById(id){return DB.users.find(u=>u.id===id)}
 function loanById(id){return DB.loans.find(l=>l.id===id)}
 function uname(id){const u=userById(id);return u?u.name:'Unknown'}
 function pct(a,b){return b?(a/b*100):0}
-function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(DB))}catch(e){toast('Browser storage is full. Large files may not be saved. Use Data Management to clean up.','error')}}
-function load(){try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(d&&d.users)return d}catch(e){}return null}
+// Deliberately no browser-side persistence. Durable records must be written through authenticated API endpoints.
+function save(){}
+function load(){return null}
 function toast(msg,type){const t=document.createElement('div');t.className='toast '+(type||'');t.innerHTML=msg;$('toasts').appendChild(t);setTimeout(()=>t.remove(),4200)}
 function openModal(title,html,lg){$('modalTitle').innerHTML=title;$('modalBody').innerHTML=html;$('modal').className='modal'+(lg?' lg':'');$('modalBg').classList.add('show')}
 function closeModal(){$('modalBg').classList.remove('show')}
@@ -548,7 +570,6 @@ function runReminders(){if(!DB.settings.autoReminders)return;let changed=false;D
 /* ---------- initialize clean workspace (demo records removed) ---------- */
 function seed(){
  DB={users:[],loans:[],repayments:[],transactions:[],notifications:[],chats:{},announcements:[],followups:[],audit:[],messages:[],counters:{loan:1000,acct:2024000,rep:5000,tx:90000},settings:{...DEFAULT_SETTINGS}};
- save()
 }
 
 /* ---------- public site ---------- */
@@ -645,15 +666,19 @@ function openAuth(mode,role){role=role||'customer';$('mobMenu').classList.remove
  <button class="btn btn-gold btn-block">Login →</button>
  <p style="text-align:center;margin-top:12px;font-size:13px">New customer? <a href="javascript:openAuth('register')" style="color:var(--gold);font-weight:600">Create an account</a></p></form>`)}
 function setLoginRole(r){$('lgRole').value=r;$('lgC').classList.toggle('active',r==='customer');$('lgA').classList.toggle('active',r==='admin');$('lgEmail').value='';$('lgPw').value=''}
-function doLogin(e){e.preventDefault();const f=e.target;const u=DB.users.find(x=>x.email.toLowerCase()===f.email.value.trim().toLowerCase()&&x.password===f.password.value&&x.role===f.role.value);
- if(!u)return toast('❌ Invalid email, password or account type.','error');if(u.status==='suspended')return toast('🚫 This account is suspended. Please contact support.','error');
- CU=u;sessionStorage.setItem(SS_KEY,u.id);u.lastLogin=Date.now();audit('Logged in');save();closeModal();toast('Welcome back, '+esc(u.name.split(' ')[0])+'! 👋');enterApp();if(window._pendingApply&&u.role==='customer'){go('apply',{type:window._pendingApply});window._pendingApply=null}}
-function doRegister(e){e.preventDefault();const f=e.target;if(f.password.value!==f.password2.value)return toast('Passwords do not match','error');
- if(DB.users.some(u=>u.email.toLowerCase()===f.email.value.trim().toLowerCase()))return toast('An account with that email already exists','error');
- const u={id:uid('u'),role:'customer',name:f.name.value.trim(),email:f.email.value.trim(),password:f.password.value,phone:f.phone.value.trim(),altPhone:'',dob:'',gender:'',nationalId:'',occupation:'',address:{district:f.district.value,area:f.area.value.trim(),house:'',ta:''},nok:{name:'',relation:'',phone:'',address:''},kyc:[],accountNo:newAccountNo(),createdAt:Date.now(),status:'active'};
- DB.users.push(u);notify(u.id,'Welcome to MILTON HOLDINGS 👋',`Your account ${u.accountNo} has been created. Complete your profile and KYC to apply for a loan.`,'👋');notify('admin','New Customer Registered',`${u.name} (${u.phone}) created account ${u.accountNo}.`,'👤');
- CU=u;sessionStorage.setItem(SS_KEY,u.id);audit('Registered new account');save();closeModal();toast('🎉 Account created! Your account number is '+u.accountNo);enterApp();if(window._pendingApply){go('apply',{type:window._pendingApply});window._pendingApply=null}}
-function logout(){audit('Logged out');save();CU=null;sessionStorage.removeItem(SS_KEY);showPublic();toast('You have been logged out.','info')}
+async function doLogin(e){e.preventDefault();const f=e.target;const email=f.email.value.trim();const role=f.role.value==='admin'?'admin':'customer';
+ try{const data=await apiFetch('/api/auth/login',{method:'POST',body:JSON.stringify({email,password:f.password.value,role})});
+ API_TOKEN=data.access_token||null;const raw=data.user||{};const u={id:raw.id,role:raw.role==='Administrator'?'admin':String(raw.role||'customer').toLowerCase(),name:raw.fullName||raw.name||email.split('@')[0],email:raw.email||email,phone:raw.phone||'',status:'active',address:raw.address||{},nok:{},kyc:[]};
+ if(role==='admin'&&u.role==='customer')throw new Error('This account is not registered as staff/admin.');
+ DB.users=DB.users.filter(x=>x.id!==u.id);DB.users.push(u);CU=u;try{await hydrateApplications()}catch(loadErr){toast('Signed in, but loan records could not be loaded: '+esc(loadErr.message),'error')}closeModal();toast('Welcome back, '+esc(u.name.split(' ')[0])+'! 👋');enterApp();if(window._pendingApply&&u.role==='customer'){go('apply',{type:window._pendingApply});window._pendingApply=null}
+ }catch(err){toast('❌ '+esc(err.message||'Login failed'),'error')}}
+async function doRegister(e){e.preventDefault();const f=e.target;if(f.password.value!==f.password2.value)return toast('Passwords do not match','error');
+ try{const data=await apiFetch('/api/auth/register',{method:'POST',body:JSON.stringify({fullName:f.name.value.trim(),email:f.email.value.trim(),phone:f.phone.value.trim(),password:f.password.value,address:[f.district.value,f.area.value.trim()].filter(Boolean).join(', ')})});
+ if(!data.access_token){toast('Account created. Please sign in after completing any required email confirmation.','info');openAuth('login','customer');return}
+ API_TOKEN=data.access_token;const raw=data.user||{};const u={id:raw.id,role:'customer',name:raw.fullName||f.name.value.trim(),email:raw.email||f.email.value.trim(),phone:raw.phone||f.phone.value.trim(),status:'active',address:{district:f.district.value,area:f.area.value.trim(),house:'',ta:''},nok:{},kyc:[]};
+ DB.users.push(u);CU=u;try{await hydrateApplications()}catch(loadErr){toast('Account created, but loan records could not be loaded: '+esc(loadErr.message),'error')}closeModal();toast('🎉 Account created successfully.');enterApp();if(window._pendingApply){go('apply',{type:window._pendingApply});window._pendingApply=null}
+ }catch(err){toast('❌ '+esc(err.message||'Registration failed'),'error')}}
+function logout(){CU=null;API_TOKEN=null;DB.users=[];showPublic();toast('You have been logged out.','info')}
 
 /* ---------- app shell ---------- */
 const C_MENU=[['Main'],['home','🏠','Home'],['account','👤','Account Details'],['loans','💼','Active Loans'],['apply','📝','Application Forms'],['calc','🧮','Loan Calculator'],['Money'],['repay','💳','Repayments'],['schedules','📅','Loan Schedules'],['tx','🔁','Transactions'],['statements','📄','Statements'],['Support'],['notif','🔔','Notifications'],['help','💬','Help Assistant']];
@@ -765,8 +790,11 @@ async function submitApp(e){e.preventDefault();const f=e.target;const s=DB.setti
  $('apSubmit').disabled=true;$('apSubmit').textContent='Uploading...';
  const docs={};for(const k of Object.keys(DOC_LABELS)){docs[k]=await readFile(f.elements[k])}
  const app={};Array.from(f.elements).forEach(el=>{if(!el.name||el.type==='file'||el.type==='checkbox'||el.type==='radio'||el.disabled)return;app[el.name]=String(el.value).trim()});
- const l=createLoan(CU.id,t,amt,+f.months.value,app,docs);
- // update profile with any missing info
+ let serverApplication;
+ try{const c=calcLoan(t,amt,+f.months.value);const saved=await apiFetch('/api/loan-applications',{method:'POST',body:JSON.stringify({amount:amt,interest_rate:c.rate,term_months:+f.months.value,purpose:JSON.stringify({loanType:t,form:app})})});serverApplication=saved.application;}
+ catch(err){$('apSubmit').disabled=false;$('apSubmit').textContent='Submit Application';return toast('Could not save your application to the database: '+esc(err.message),'error')}
+ const l=createLoan(CU.id,t,amt,+f.months.value,app,{},Date.now());l.id=serverApplication.id;l.ref='APP-'+String(serverApplication.id).slice(0,8).toUpperCase();
+ // update profile in this page session only; profile changes are not yet exposed by the backend API.
  CU.dob=CU.dob||app.dob;CU.gender=CU.gender||app.gender;CU.nationalId=CU.nationalId||app.nationalId;CU.occupation=app.occupation||CU.occupation;CU.altPhone=CU.altPhone||app.altPhone;
  CU.address=Object.assign({},CU.address,{district:app.district,area:app.area,house:app.houseNo||CU.address.house,ta:app.ta||CU.address.ta});CU.nok={name:app.nokName,relation:app.nokRelation,phone:app.nokPhone,address:app.nokAddress};
  if(docs.idFront)CU.kyc.unshift({id:uid('k'),type:app.idType,number:app.idNumber,expiry:app.idExpiry,file:docs.idFront,status:'unverified',uploadedAt:Date.now()});
@@ -1070,13 +1098,8 @@ function addAnn(e){e.preventDefault();const f=e.target;DB.announcements.unshift(
 function pinAnn(id){const a=DB.announcements.find(x=>x.id===id);a.pinned=!a.pinned;save();refresh()}
 function delAnn(id){if(!confirm('Delete this announcement?'))return;DB.announcements=DB.announcements.filter(a=>a.id!==id);audit('Deleted announcement');save();refresh()}
 AP.enquiries=()=>`<div class="page-h"><div><h2>Website Enquiries</h2><p>Messages submitted through the public contact form.</p></div></div><div class="card">${DB.messages.length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Name</th><th>Phone</th><th>Email</th><th>Message</th><th></th></tr></thead><tbody>${DB.messages.map(m=>`<tr><td>${fdt(m.date)}</td><td>${esc(m.name)}</td><td>${esc(m.phone)}</td><td>${esc(m.email||'—')}</td><td>${esc(m.message)}</td><td><button class="btn btn-red btn-sm" onclick="DB.messages=DB.messages.filter(x=>x.id!=='${m.id}');save();refresh()">Delete</button></td></tr>`).join('')}</tbody></table></div>`:empty('No enquiries','✉️')}</div>`;
-AP.data=()=>{const size=new Blob([localStorage.getItem(LS_KEY)||'']).size;return `<div class="page-h"><div><h2>Data Management</h2><p>Backup, restore, export and clean system data.</p></div></div>
- <div class="stats">${stat('👥','Users',DB.users.length,'#dbeafe')}${stat('💼','Loans',DB.loans.length,'#ede9fe')}${stat('💳','Repayments',DB.repayments.length,'#dcfce7')}${stat('🔁','Transactions',DB.transactions.length,'#fef3c7')}${stat('🔔','Notifications',DB.notifications.length,'#fee2e2')}${stat('💾','Storage Used',(size/1024).toFixed(1)+' KB / ~5 MB','#f1f5f9')}</div>
- <div class="grid2"><div class="card"><h3>💾 Backup & Restore</h3><p style="font-size:13px;color:#475569;margin-bottom:12px">Download a full JSON backup of all data, or restore from a previous backup.</p><div class="toolbar"><button class="btn btn-gold" onclick="downloadFile('milton_backup_'+ymd(Date.now())+'.json',JSON.stringify(DB),'application/json');audit('Downloaded backup');save()">⬇️ Download Backup</button><label class="btn btn-light">⬆️ Restore Backup<input type="file" accept=".json" style="display:none" onchange="restoreBackup(this)"></label></div></div>
- <div class="card"><h3>📤 Export CSV</h3><div class="toolbar"><button class="btn btn-light" onclick="exportCustomers()">👥 Customers</button><button class="btn btn-light" onclick="exportLoans()">💼 Loans</button><button class="btn btn-light" onclick="downloadFile('repayments.csv',toCSV([['Ref','Customer','Loan','Method','Reference','Amount','Date','Status'],...DB.repayments.map(r=>[r.ref,uname(r.userId),r.loanRef,r.method,r.reference,r.amount,fdate(r.date),r.status])]),'text/csv')">💳 Repayments</button><button class="btn btn-light" onclick="downloadFile('transactions.csv',toCSV([['Ref','Customer','Type','Dir','Amount','Desc','Date'],...DB.transactions.map(t=>[t.ref,uname(t.userId),t.type,t.dir,t.amount,t.desc,fdt(t.date)])]),'text/csv')">🔁 Transactions</button></div></div></div>
- <div class="card"><h3>🧹 Maintenance</h3><div class="toolbar"><button class="btn btn-light" onclick="if(confirm('Delete all READ notifications?')){DB.notifications=DB.notifications.filter(n=>!n.read);audit('Purged read notifications');save();refresh()}">Purge read notifications</button><button class="btn btn-light" onclick="if(confirm('Remove stored document images to free space? File names are kept.')){stripFiles();}">Free space (remove stored files)</button><button class="btn btn-light" onclick="if(confirm('Clear audit trail?')){DB.audit=[];audit('Cleared audit trail');save();refresh()}">Clear audit trail</button></div>
- <div class="alert alert-red" style="margin-top:10px"><b>Danger zone</b><div class="toolbar" style="margin:8px 0 0"><button class="btn btn-red" onclick="if(confirm('Reset all browser-stored data?')){localStorage.removeItem(LS_KEY);seed();CU=userById('u_admin');sessionStorage.setItem(SS_KEY,CU.id);go('stats');toast('Empty workspace restored')}">Reset to demo data</button><button class="btn btn-red" onclick="if(confirm('Delete ALL customers, loans and transactions? Admin and settings are kept.')){wipeData()}">Wipe all business data</button></div></div></div>`};
-function restoreBackup(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.users||!d.loans)throw 0;if(!confirm('Replace all current data with this backup?'))return;DB=d;CU=userById(CU.id)||DB.users.find(u=>u.role==='admin');save();toast('✅ Backup restored');go('data')}catch(e){toast('Invalid backup file','error')}};r.readAsText(f)}
+AP.data=()=>`<div class="page-h"><div><h2>Data Management</h2><p>System records are not saved in this browser.</p></div></div><div class="alert alert-blue"><b>Database-connected mode</b><p>Login, customer registration and the core loan-application record use the server API. Other legacy modules (repayments, disbursements, reports, settings, notifications and backups) still need dedicated server endpoints before they can be managed here safely. No browser-storage reset or wipe is available.</p></div>`;
+function restoreBackup(){toast('Backup restore is disabled until a secure server-side import endpoint is available.','error')}
 function stripFiles(){const strip=d=>{if(d&&d.data)d.data=null};DB.loans.forEach(l=>Object.values(l.docs||{}).forEach(strip));DB.users.forEach(u=>(u.kyc||[]).forEach(k=>strip(k.file)));DB.repayments.forEach(r=>strip(r.proof));audit('Removed stored files');save();refresh();toast('Space freed')}
 function wipeData(){const admins=DB.users.filter(u=>u.role==='admin');DB.users=admins;DB.loans=[];DB.repayments=[];DB.transactions=[];DB.notifications=[];DB.chats={};DB.followups=[];DB.messages=[];DB.adminAI=null;audit('Wiped all business data');save();refresh();toast('All business data wiped','info')}
 AP.audit=()=>`<div class="page-h"><div><h2>Audit Trail</h2><p>Every important action recorded with user and time.</p></div></div><div class="card">${DB.audit.length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date & Time</th><th>User</th><th>Role</th><th>Action</th></tr></thead><tbody>${DB.audit.slice(0,300).map(a=>`<tr><td>${fdt(a.date)}</td><td>${esc(a.by)}</td><td>${badge(a.role==='admin'?'approved':a.role==='customer'?'personal':'closed',a.role)}</td><td>${esc(a.action)}</td></tr>`).join('')}</tbody></table></div>`:empty('No audit records')}</div>`;
@@ -1095,12 +1118,10 @@ function saveSettings(e){e.preventDefault();const f=e.target;const s=DB.settings
 function addAdmin(e){e.preventDefault();const f=e.target;if(DB.users.some(u=>u.email.toLowerCase()===f.e.value.toLowerCase()))return toast('Email already exists','error');DB.users.push({id:uid('u'),role:'admin',name:f.n.value,email:f.e.value,password:f.p.value,phone:'',createdAt:Date.now(),status:'active'});audit('Added administrator '+f.n.value);save();toast('Administrator added');refresh()}
 
 /* ---------- live sync across tabs ---------- */
-window.addEventListener('storage',e=>{if(e.key!==LS_KEY)return;const d=load();if(!d)return;DB=d;if(CU){CU=userById(CU.id);if(!CU)return logout();if(['help','chatA','notif','notifA'].includes(currentPage)){const inp=$('chatIn');const v=inp?inp.value:'';refresh();const ni=$('chatIn');if(ni){ni.value=v}}else renderMenu()}});
-
 /* ---------- boot ---------- */
 (function init(){DB=load();if(!DB)seed();DB.settings=Object.assign({},DEFAULT_SETTINGS,DB.settings||{});
  ['pubBrand','footBrand'].forEach(id=>$(id).innerHTML=brandHTML(id==='pubBrand'?50:44));fillSettings();quickEst();mountCalc('pubCalc','pub','personal');
- const sid=sessionStorage.getItem(SS_KEY);if(sid){const u=userById(sid);if(u&&u.status!=='suspended'){CU=u;enterApp()}}
+ // Sessions are held in memory only; refreshing the page requires signing in again until secure refresh-token handling is added.
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()})})();
 </script>
 </body>
