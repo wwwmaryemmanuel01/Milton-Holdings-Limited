@@ -673,7 +673,7 @@ function openAuth(mode,role){role=role||'customer';$('mobMenu').classList.remove
 function setLoginRole(r){$('lgRole').value=r;$('lgC').classList.toggle('active',r==='customer');$('lgA').classList.toggle('active',r==='admin');$('lgEmail').value='';$('lgPw').value=''}
 async function doLogin(e){e.preventDefault();const f=e.target;const email=f.email.value.trim();const role=f.role.value==='admin'?'admin':'customer';
  try{const data=await apiFetch('/api/auth/login',{method:'POST',body:JSON.stringify({email,password:f.password.value,role})});
- API_TOKEN=data.access_token||null;const raw=data.user||{};const u={id:raw.id,role:raw.role==='Administrator'?'admin':String(raw.role||'customer').toLowerCase(),name:raw.fullName||raw.name||email.split('@')[0],email:raw.email||email,phone:raw.phone||'',status:'active',address:raw.address||{},nok:{},kyc:[]};
+ API_TOKEN=data.access_token||null;const raw=data.user||{};const u={id:raw.id,role:raw.role==='Administrator'?'admin':String(raw.role||'customer').toLowerCase(),name:raw.fullName||raw.name||email.split('@')[0],email:raw.email||email,phone:raw.phone||'',accountNo:raw.accountNo||raw.account_no||'',status:'active',address:raw.address||{},nok:{},kyc:[]};
  if(role==='admin'&&u.role==='customer')throw new Error('This account is not registered as staff/admin.');
  DB.users=DB.users.filter(x=>x.id!==u.id);DB.users.push(u);CU=u;try{await hydrateApplications()}catch(loadErr){toast('Signed in, but loan records could not be loaded: '+esc(loadErr.message),'error')}closeModal();toast('Welcome back, '+esc(u.name.split(' ')[0])+'! 👋');enterApp();if(window._pendingApply&&u.role==='customer'){go('apply',{type:window._pendingApply});window._pendingApply=null}
  }catch(err){toast('❌ '+esc(err.message||'Login failed'),'error')}}
